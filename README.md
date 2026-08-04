@@ -1,8 +1,27 @@
-# DVD Ripper GUI 
+<div align="center">
+
+# DVD Ripper GUI
+
+*A local, browser-based front end for a terminal DVD/Blu-ray ripping tool — built to make a personal media workflow usable without living in a terminal window.*
+
+</div>
+
+**Disc scan and auto-detection**
+
+
+![Scan and detect](screenshot-scan-detect.png)
+
+**Episode matching via play-all reconciliation**
+
+![Episode matching](screenshot-episode-matching.png)
+
+**GIF (Workflow)**
 
 ![DVD Ripper GUI demo](DVD-Ripper-Demo.gif)
 
-A local, browser-based front end for a terminal DVD/Blu-ray ripping tool — built to make a personal media workflow usable without living in a terminal window.
+
+
+
 
 ## What it does
 
