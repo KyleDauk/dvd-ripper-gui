@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """Episode reconciliation and library browsing for the GUI.
 
-Kept separate from dvdrip.py so that file stays an unmodified copy. If this
-logic proves itself, it can be folded into the terminal program later.
-
 The interesting part is refine_with_playall(). A disc's play-all title is a
 better source of truth than any online runtime database: it is the studio's
 own list of what counts as an episode, and it is accurate to the second.
