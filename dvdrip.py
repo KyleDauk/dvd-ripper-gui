@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-dvdrip.py - Terminal DVD ripper for Plex libraries.
+dvdrip.py - Terminal DVD ripper for local Plex server and its libraries.
 
 Orchestrates lsdvd -> dvdbackup -> ffmpeg. Does no decryption itself;
 libdvdcss (already installed via Homebrew) handles CSS.
