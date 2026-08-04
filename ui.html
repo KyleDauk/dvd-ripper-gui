@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DVD Ripper</title>
+<style>
+  :root {
+    --bg: #f6f6f8; --panel: #ffffff; --ink: #1c1c1e; --muted: #6b6b73;
+    --line: #e0e0e6; --accent: #0a6cff; --good: #1a8f4c; --warn: #b06a00;
+    --bad: #c02626; --row: #fafafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a; --panel: #1f1f25; --ink: #ececf1; --muted: #9a9aa6;
+      --line: #33333d; --accent: #4d9bff; --good: #43c07a; --warn: #e0a13a;
+      --bad: #ff6b6b; --row: #25252c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; margin-bottom: 16px;
+  }
+  .panel h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 14px; font-weight: 600;
+  }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 170px; }
+  label.fld { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select, button {
+    font: inherit; color: var(--ink); border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); padding: 8px 10px;
+  }
+  select { max-width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    background: var(--accent); color: #fff; border-color: transparent;
+    font-weight: 600; cursor: pointer; padding: 9px 16px;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button.danger { background: var(--bad); }
+  .pill {
+    font-size: 12px; padding: 3px 9px; border-radius: 999px;
+    background: var(--row); border: 1px solid var(--line); color: var(--muted);
+  }
+  .pill.on { color: var(--good); border-color: var(--good); }
+  .pill.off { color: var(--bad); border-color: var(--bad); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    background: transparent; color: var(--muted); border: 0;
+    border-radius: 0; font-weight: 500; padding: 8px 18px;
+  }
+  .seg button.sel { background: var(--accent); color: #fff; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); padding: 6px 8px;
+    border-bottom: 1px solid var(--line); font-weight: 600;
+  }
+  td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tr.dim td { opacity: 0.5; }
+  tbody tr:hover { background: var(--row); }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+  .why { font-size: 12px; color: var(--muted); }
+  .why.keep { color: var(--good); }
+  .why.skip { color: var(--warn); }
+  input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); }
+  input.name { width: 100%; }
+  .bar { height: 8px; background: var(--row); border-radius: 999px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .log {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    background: var(--row); border-radius: 8px; padding: 10px;
+    max-height: 190px; overflow: auto; white-space: pre-wrap; margin-top: 12px;
+  }
+  .msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 13px; }
+  .msg.err { background: rgba(192,38,38,.12); color: var(--bad); }
+  .msg.ok  { background: rgba(26,143,76,.12); color: var(--good); }
+  .note {
+    background: var(--row); border-left: 3px solid var(--accent);
+    padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .path {
+    font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    color: var(--muted); word-break: break-all; margin-top: 10px;
+  }
+  .hide { display: none !important; }
+  .foot { color: var(--muted); font-size: 12px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <h1>DVD Ripper</h1>
+      <div class="sub">Local interface for your ripping engine.</div>
+    </div>
+    <button id="togglesettings" class="ghost">Library folders</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <!-- ------------------------------------------------------ settings -->
+  <div class="panel hide" id="setpanel">
+    <h2>Library folders</h2>
+    <div class="row">
+      <div class="grow">
+        <label class="fld">TV shows folder</label>
+        <input id="libtv" class="mono" placeholder="/Volumes/Media/TV Shows">
+      </div>
+      <div class="grow">
+        <label class="fld">Movies folder</label>
+        <input id="libmovies" class="mono" placeholder="/Volumes/Media/Movies">
+      </div>
+      <div style="align-self:flex-end">
+        <button id="savelibs">Save</button>
+      </div>
+    </div>
+    <div id="volhint" class="why" style="margin-top:10px"></div>
+  </div>
+
+  <!-- ---------------------------------------------------------- disc -->
+  <div class="panel">
+    <h2>Disc</h2>
+    <div class="row">
+      <div>
+        <label class="fld">Drive</label>
+        <select id="drive"></select>
+      </div>
+      <div>
+        <label class="fld">Disc type</label>
+        <div class="seg" id="mode">
+          <button data-mode="tv" class="sel">TV series</button>
+          <button data-mode="movie">Movie</button>
+        </div>
+      </div>
+      <div class="grow"></div>
+      <span id="media" class="pill">checking…</span>
+      <span id="mkv" class="pill">checking…</span>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button id="scan">Scan disc</button>
+      <button id="eject" class="ghost">Eject</button>
+      <span id="discinfo" class="why"></span>
+    </div>
+  </div>
+
+  <!-- --------------------------------------------------- destination -->
+  <div class="panel hide" id="destpanel">
+    <h2>Where it goes</h2>
+
+    <!-- TV -->
+    <div id="tvdest">
+      <div class="row">
+        <div class="grow">
+          <label class="fld">Series</label>
+          <select id="show"></select>
+        </div>
+        <div class="grow hide" id="newshowwrap">
+          <label class="fld">New series name</label>
+          <input id="newshow" placeholder="e.g. Northern Exposure">
+        </div>
+        <div>
+          <label class="fld">Season</label>
+          <select id="season"></select>
+        </div>
+        <div class="hide" id="newseasonwrap">
+          <label class="fld">New season number</label>
+          <input id="newseason" type="number" min="1" value="1" style="width:110px">
+        </div>
+        <div>
+          <label class="fld">Start at episode</label>
+          <input id="startep" type="number" min="1" value="1" style="width:110px">
+        </div>
+      </div>
+      <div id="seasoninfo" class="why" style="margin-top:10px"></div>
+      <div class="row hide" id="schemewrap" style="margin-top:12px">
+        <div>
+          <label class="fld">Number new files to match</label>
+          <div class="seg" id="scheme">
+            <button data-follow="library" class="sel">My library</button>
+            <button data-follow="tvmaze">TVmaze</button>
+          </div>
+        </div>
+        <div class="grow"><span id="schemenote" class="why"></span></div>
+      </div>
+    </div>
+
+    <!-- Movie -->
+    <div id="moviedest" class="hide">
+      <div class="row">
+        <div class="grow">
+          <label class="fld">Movie title</label>
+          <input id="movietitle" placeholder="e.g. The Thing">
+        </div>
+        <div>
+          <label class="fld">Year</label>
+          <input id="movieyear" placeholder="1982" style="width:110px">
+        </div>
+      </div>
+    </div>
+
+    <div class="path" id="destpath"></div>
+  </div>
+
+  <!-- ------------------------------------------------------ episodes -->
+  <div class="panel hide" id="tvpanel">
+    <h2>Episode names</h2>
+    <div class="row">
+      <div class="grow">
+        <label class="fld">Look up on TVmaze</label>
+        <input id="query" placeholder="Series name to search">
+      </div>
+      <div style="align-self:flex-end">
+        <button id="lookup" class="ghost">Look up</button>
+      </div>
+    </div>
+    <div id="shows" class="row" style="margin-top:12px"></div>
+    <div id="epinfo" class="why" style="margin-top:10px"></div>
+  </div>
+
+  <!-- -------------------------------------------------------- titles -->
+  <div class="panel hide" id="titlepanel">
+    <h2>Titles</h2>
+    <div id="playall"></div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:34px"></th>
+          <th style="width:56px">Title</th>
+          <th style="width:84px">Length</th>
+          <th style="width:56px">Audio</th>
+          <th>Recommendation</th>
+          <th style="width:38%">Save as</th>
+        </tr>
+      </thead>
+      <tbody id="titles"></tbody>
+    </table>
+    <div class="row" style="margin-top:14px">
+      <button id="all" class="ghost">Select all</button>
+      <button id="none" class="ghost">Select none</button>
+      <span id="picked" class="why"></span>
+    </div>
+  </div>
+
+  <!-- ----------------------------------------------------------- rip -->
+  <div class="panel hide" id="rippanel">
+    <h2>Rip</h2>
+    <div class="row">
+      <button id="rip">Start ripping</button>
+      <span id="ripinfo" class="why"></span>
+    </div>
+    <div id="progwrap" class="hide" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between">
+        <strong id="proglabel"></strong>
+        <span id="progcount" class="why"></span>
+      </div>
+      <div class="bar" style="margin-top:8px"><i id="progbar"></i></div>
+      <div class="row" style="margin-top:12px">
+        <button id="cancel" class="danger">Stop after this title</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="foot">Runs only on this Mac. Nothing is sent anywhere.</div>
+</div>
+
+<script>
+"use strict";
+
+let MODE = "tv";
+let TITLES = [];
+let EPISODES = [];
+let LIB = { tv_root: "", movies_root: "", shows: [] };
+let SEASONS = [];
+let PREFIX = "";
+let SHOWID = null;
+let CANDIDATES = [];
+let POLL = null;
+
+// Your library and TVmaze can disagree about numbering when a two-parter was
+// saved under one number. OFFSET is how far apart they are:
+//     library number + OFFSET = TVmaze number
+// FOLLOW decides which one new files are numbered in. Either is fine, but the
+// name and the number must come from the same scheme or you get "S06E12 -
+// Scott's Tots" sitting on top of an episode that is actually Secret Santa.
+let OFFSET = 0;
+let FOLLOW = "library";
+
+const $ = (id) => document.getElementById(id);
+const NEW = "__new__";
+
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  return r.json();
+}
+async function get(path) { return (await fetch(path)).json(); }
+
+function say(t, kind) {
+  $("msg").innerHTML = t ? `<div class="msg ${kind || "err"}">${t}</div>` : "";
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+function esc(s) {
+  return String(s).replace(/[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// ------------------------------------------------------------- state
+
+async function refresh() {
+  const s = await get("/api/state");
+  $("drive").innerHTML = s.drives.map(
+    (d) => `<option ${d === s.drive ? "selected" : ""}>${esc(d)}</option>`
+  ).join("") || `<option value="">no optical drive found</option>`;
+  $("media").textContent = s.media ? "disc loaded" : "no disc";
+  $("media").className = "pill " + (s.media ? "on" : "off");
+  $("mkv").textContent = s.makemkv ? "MakeMKV ready" : "MakeMKV missing";
+  $("mkv").className = "pill " + (s.makemkv ? "on" : "off");
+}
+
+// ---------------------------------------------------------- settings
+
+$("togglesettings").onclick = () => $("setpanel").classList.toggle("hide");
+
+async function loadSettings() {
+  const s = await api("/api/settings");
+  if (s.error) return say(s.error);
+  $("libtv").value = s.tv || "";
+  $("libmovies").value = s.movies || "";
+
+  // A fresh machine has neither set, so lead with the thing that blocks.
+  if (!s.tv && !s.movies) {
+    $("setpanel").classList.remove("hide");
+    say("Point these at your media folders to get started.", "ok");
+    const v = await api("/api/volumes");
+    $("volhint").textContent =
+      "Mounted right now: " + (v.volumes || []).join("   ");
+  }
+}
+
+$("savelibs").onclick = async () => {
+  const s = await api("/api/settings",
+    { tv: $("libtv").value, movies: $("libmovies").value });
+  if (s.error) return say(s.error);
+  say("Saved.", "ok");
+  await loadLibrary();
+};
+
+async function loadLibrary() {
+  LIB = await api("/api/library");
+  const opts = LIB.shows.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`);
+  $("show").innerHTML =
+    `<option value="">— pick a series —</option>` +
+    opts.join("") +
+    `<option value="${NEW}">+ New series…</option>`;
+}
+
+// ------------------------------------------------- destination (TV)
+
+$("show").onchange = async () => {
+  const v = $("show").value;
+  $("newshowwrap").classList.toggle("hide", v !== NEW);
+  if (v === NEW) {
+    SEASONS = [];
+    PREFIX = "";
+    $("season").innerHTML = `<option value="${NEW}">+ New season…</option>`;
+    $("newseasonwrap").classList.remove("hide");
+    $("seasoninfo").textContent = "New series — pick a season number.";
+    return paint();
+  }
+  if (!v) { $("season").innerHTML = ""; return paint(); }
+
+  const res = await api("/api/library/show", { show: v });
+  SEASONS = res.seasons || [];
+  PREFIX = res.prefix || v;
+  SHOWID = res.show_id || null;
+  CANDIDATES = res.candidates || [];
+  if (!$("query").value) $("query").value = v;
+
+  $("season").innerHTML =
+    SEASONS.map((s) =>
+      `<option value="${s.number}">${esc(s.name)} — ${s.count} file${s.count === 1 ? "" : "s"}</option>`
+    ).join("") + `<option value="${NEW}">+ New season…</option>`;
+
+  // Land on the season that still has room, not blindly the first one.
+  const gap = SEASONS.find((s) => s.count > 0 && s.next <= 40);
+  if (gap) $("season").value = String(gap.number);
+  await $("season").onchange();
+};
+
+$("season").onchange = async () => {
+  const v = $("season").value;
+  $("newseasonwrap").classList.toggle("hide", v !== NEW);
+
+  const s = SEASONS.find((x) => String(x.number) === v);
+  if (s) {
+    $("startep").value = s.next;
+    const list = s.episodes.length
+      ? `has E${pad(s.episodes[0])}–E${pad(s.episodes[s.episodes.length - 1])} (${s.count} files)`
+      : "is empty";
+    $("seasoninfo").innerHTML =
+      `${esc(s.name)} ${list}. Next gap is <strong>E${pad(s.next)}</strong>.`;
+  } else {
+    $("startep").value = 1;
+    $("seasoninfo").textContent = "New season — starts at episode 1.";
+  }
+
+  await loadEpisodeNames();
+  paint();
+};
+
+// Names should already be there when the titles appear. The manual search is
+// a fallback for when the folder name cannot be matched, not the normal path.
+async function loadEpisodeNames() {
+  EPISODES = [];
+  if (MODE !== "tv" || !showName()) { $("epinfo").textContent = ""; return; }
+  const season = seasonNumber();
+
+  if (!SHOWID) {
+    if (CANDIDATES.length) {
+      $("epinfo").textContent =
+        "More than one series matches that folder name — pick the right one:";
+      renderCandidates(CANDIDATES);
+    } else {
+      $("epinfo").textContent =
+        "No TVmaze match for this folder. Search below to add episode names.";
+    }
+    return;
+  }
+
+  const r = await api("/api/tvmaze/episodes",
+                      { show_id: SHOWID, season: season });
+  if (r.error) { $("epinfo").textContent = r.error; return; }
+  EPISODES = r.slots || [];
+  OFFSET = detectOffset(season);
+  $("shows").innerHTML = "";
+  $("epinfo").innerHTML = EPISODES.length
+    ? `Season ${season}: ${EPISODES.length} broadcast slots. ` + driftReport(season)
+    : `TVmaze lists no episodes for season ${season}.`;
+  $("schemewrap").classList.toggle("hide", !OFFSET);
+  paintScheme();
+}
+
+// Both schemes name the same physical episode identically. They differ only
+// in the number written, so switching shifts the starting number to suit.
+function paintScheme() {
+  document.querySelectorAll("#scheme button").forEach((b) =>
+    b.classList.toggle("sel", b.dataset.follow === FOLLOW));
+  $("schemenote").textContent = OFFSET
+    ? (FOLLOW === "library"
+        ? "Continuing your library's numbering. Plex may disagree with it."
+        : "Using TVmaze's numbering. This leaves a gap until you renumber the older files.")
+    : "";
+}
+
+document.querySelectorAll("#scheme button").forEach((b) => {
+  b.onclick = () => {
+    const want = b.dataset.follow;
+    if (want === FOLLOW) return;
+    const cur = parseInt($("startep").value || "1", 10);
+    $("startep").value = want === "tvmaze" ? cur + OFFSET : cur - OFFSET;
+    FOLLOW = want;
+    paintScheme();
+    paint();
+  };
+});
+
+function renderCandidates(list) {
+  $("shows").innerHTML = "";
+  list.forEach((s) => {
+    const b = document.createElement("button");
+    b.className = "ghost";
+    b.textContent = `${s.name}${s.year ? " (" + s.year + ")" : ""}${s.network ? " · " + s.network : ""}`;
+    b.onclick = () => pickShow(s);
+    $("shows").appendChild(b);
+  });
+}
+
+["newshow", "newseason", "startep", "movietitle", "movieyear"]
+  .forEach((id) => { $(id).oninput = paint; });
+
+function seasonNumber() {
+  const v = $("season").value;
+  return v === NEW ? parseInt($("newseason").value || "1", 10)
+                   : parseInt(v || "1", 10);
+}
+function showName() {
+  return $("show").value === NEW
+    ? ($("newshow").value || "").trim()
+    : $("show").value;
+}
+function destPath() {
+  if (MODE === "movie") return LIB.movies_root || "(no movie folder set)";
+  const show = showName();
+  if (!show) return "";
+  return `${LIB.tv_root}/${show}/Season ${pad(seasonNumber())}`;
+}
+
+// ------------------------------------------------------------ naming
+
+function movieName(n) {
+  const t = ($("movietitle").value || "Movie").trim();
+  const y = ($("movieyear").value || "").trim();
+  const base = y ? `${t} (${y})` : t;
+  return n === 0 ? `${base}.mkv` : `${base} - extra ${n}.mkv`;
+}
+
+// A 43-minute title on a 22-minute show is two broadcast episodes, so it
+// consumes two numbers and is named as a range: S06E17-E18.
+function episodeName(num, parts) {
+  const s = seasonNumber();
+  const prefix = PREFIX || showName() || "Show";
+  const last = num + parts - 1;
+  const span = parts > 1 ? `S${pad(s)}E${pad(num)}-E${pad(last)}`
+                         : `S${pad(s)}E${pad(num)}`;
+  // Look the name up under TVmaze's numbering, which means translating when
+  // the file is being numbered to match the library instead.
+  const key = num + (FOLLOW === "library" ? OFFSET : 0);
+  const slot = EPISODES.find((e) => e.first === key)
+            || EPISODES.find((e) => key >= e.first && key <= e.last);
+  return `${prefix} - ${span}${slot ? " - " + slot.title : ""}.mkv`;
+}
+
+// ------------------------------------------------------------- scan
+
+$("scan").onclick = async () => {
+  say("");
+  $("scan").disabled = true;
+  $("scan").textContent = "Scanning…";
+  const res = await api("/api/scan", { drive: $("drive").value, mode: MODE });
+  $("scan").disabled = false;
+  $("scan").textContent = "Scan disc";
+  if (res.error) return say(res.error);
+
+  TITLES = res.titles;
+  $("discinfo").textContent =
+    `${res.label} — ${res.titles.length} titles — read by ${res.engine}`;
+  $("playall").innerHTML = res.playall_note
+    ? `<div class="note">${esc(res.playall_note)}</div>` : "";
+  if (res.prior && res.prior.length) {
+    say(`You have ripped this disc before: ${esc(res.prior.join(", "))}`, "ok");
+  }
+
+  $("destpanel").classList.remove("hide");
+  $("titlepanel").classList.remove("hide");
+  $("rippanel").classList.remove("hide");
+  $("tvpanel").classList.toggle("hide", MODE !== "tv");
+
+  const pretty = res.label.replace(/[_.]+/g, " ")
+                          .replace(/\bS\d+\s*D\d+\b/ig, "").trim();
+
+  if (MODE === "movie" && !$("movietitle").value) {
+    $("movietitle").value = pretty.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  if (MODE === "tv" && !$("show").value) {
+    // Nudge toward the closest-looking series, but never auto-commit.
+    const guess = pretty.toLowerCase();
+    const hit = LIB.shows.find(
+      (s) => s.toLowerCase().startsWith(guess.split(" ")[0]));
+    if (hit) { $("show").value = hit; await $("show").onchange(); }
+  }
+  paint();
+};
+
+$("eject").onclick = async () => {
+  await api("/api/eject", { drive: $("drive").value });
+  setTimeout(refresh, 1500);
+};
+
+document.querySelectorAll("#mode button").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll("#mode button")
+      .forEach((x) => x.classList.remove("sel"));
+    b.classList.add("sel");
+    MODE = b.dataset.mode;
+    $("tvdest").classList.toggle("hide", MODE !== "tv");
+    $("moviedest").classList.toggle("hide", MODE === "tv");
+    $("tvpanel").classList.toggle("hide", MODE !== "tv" || !TITLES.length);
+    paint();
+  };
+});
+
+// ------------------------------------------------------------ tvmaze
+
+$("lookup").onclick = async () => {
+  const q = ($("query").value || "").trim();
+  if (!q) return;
+  $("shows").innerHTML = "searching…";
+  const res = await api("/api/tvmaze/search", { query: q });
+  if (!res.results || !res.results.length) {
+    $("shows").innerHTML = `<span class="why">No match on TVmaze.</span>`;
+    return;
+  }
+  renderCandidates(res.results);
+};
+
+// Remember the choice against the library folder, so this is a one-time
+// question per series - the terminal program uses the same cache key.
+async function pickShow(s) {
+  SHOWID = s.id;
+  CANDIDATES = [];
+  const folder = $("show").value;
+  if (folder && folder !== NEW) {
+    await api("/api/tvmaze/remember", { folder: folder, show_id: s.id });
+  }
+  $("shows").innerHTML =
+    `<span class="why">Using <strong>${esc(s.name)}</strong> — remembered.</span>`;
+  await loadEpisodeNames();
+  paint();
+}
+
+// Compare the names already on disk against TVmaze at the same numbers. A
+// two-parter saved under one number shifts everything after it, and the only
+// visible symptom is that the titles stop lining up.
+const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+// Work out the shift by matching the names already on disk to TVmaze's, then
+// taking the most common difference. Names are the reliable anchor here --
+// the numbers are exactly what is in dispute.
+function detectOffset(season) {
+  const s = SEASONS.find((x) => x.number === season);
+  if (!s || !s.titles || !EPISODES.length) return 0;
+  const votes = {};
+  Object.keys(s.titles).forEach((k) => {
+    const have = norm(s.titles[k]);
+    if (!have) return;
+    const hit = EPISODES.find((e) => norm(e.title) === have);
+    if (hit) {
+      const d = hit.first - Number(k);
+      votes[d] = (votes[d] || 0) + 1;
+    }
+  });
+  let best = 0, top = 0;
+  Object.keys(votes).forEach((d) => {
+    if (votes[d] > top) { top = votes[d]; best = Number(d); }
+  });
+  return best;
+}
+
+function driftReport(season) {
+  const s = SEASONS.find((x) => x.number === season);
+  if (!s || !s.titles || !Object.keys(s.titles).length) return "";
+  if (!OFFSET) return "Your files line up with TVmaze.";
+
+  const sample = Object.keys(s.titles)
+    .filter((k) => s.titles[k])
+    .sort((a, b) => b - a)[0];
+  const hint = sample
+    ? ` Your E${pad(sample)} is “${esc(s.titles[sample])}”, which TVmaze calls `
+      + `E${pad(Number(sample) + OFFSET)}.`
+    : "";
+  return `<span style="color:var(--warn)"><strong>Your numbering runs `
+       + `${Math.abs(OFFSET)} behind TVmaze.</strong>${hint} Names below follow `
+       + `whichever scheme you pick above.</span>`;
+}
+
+// ------------------------------------------------------------ titles
+
+function paint() {
+  $("destpath").textContent = TITLES.length ? "Saving into: " + destPath() : "";
+
+  const body = $("titles");
+  body.innerHTML = "";
+  let num = parseInt($("startep").value || "1", 10);
+  let extra = 0;
+  TITLES.forEach((t, i) => {
+    const tr = document.createElement("tr");
+    if (!t.selected) tr.className = "dim";
+    const cls = t.selected ? "keep" : "skip";
+    let name = "";
+    if (t.selected) {
+      const parts = t.parts || 1;
+      name = MODE === "movie" ? movieName(extra++) : episodeName(num, parts);
+      num += parts;
+    }
+    tr.innerHTML =
+      `<td><input type="checkbox" data-i="${i}" ${t.selected ? "checked" : ""}></td>` +
+      `<td class="mono">${t.ix}</td>` +
+      `<td class="mono">${t.length}</td>` +
+      `<td class="mono">${t.audio_count}</td>` +
+      `<td class="why ${cls}">${esc(t.reason || "")}</td>` +
+      `<td><input class="name mono" data-i="${i}" value="${esc(name)}" ${t.selected ? "" : "disabled"}></td>`;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll("input[type=checkbox]").forEach((box) => {
+    box.onchange = () => { TITLES[box.dataset.i].selected = box.checked; paint(); };
+  });
+
+  const count = TITLES.filter((t) => t.selected).length;
+  $("picked").textContent = `${count} selected`;
+  $("ripinfo").textContent = count
+    ? `${count} file${count === 1 ? "" : "s"} into ${destPath()}`
+    : "Nothing selected.";
+}
+
+$("all").onclick = () => { TITLES.forEach((t) => t.selected = true); paint(); };
+$("none").onclick = () => { TITLES.forEach((t) => t.selected = false); paint(); };
+
+// --------------------------------------------------------------- rip
+
+$("rip").onclick = async () => {
+  say("");
+  const dest = destPath();
+  if (!dest || dest.startsWith("(")) return say("Pick a destination first.");
+
+  if (MODE === "tv" && $("show").value === NEW) {
+    const made = await api("/api/library/create",
+      { kind: "tv", show: showName(), season: seasonNumber() });
+    if (made.error) return say(made.error);
+  }
+
+  // The visible name wins - the user may have corrected it by hand.
+  const jobs = [];
+  TITLES.forEach((t, i) => {
+    if (!t.selected) return;
+    const inp = document.querySelector(`input.name[data-i="${i}"]`);
+    if (inp && inp.value.trim()) jobs.push({ ix: t.ix, name: inp.value.trim() });
+  });
+  if (!jobs.length) return say("Nothing selected.");
+
+  const res = await api("/api/rip", { dest: dest, jobs: jobs });
+  if (res.error) return say(res.error);
+
+  $("progwrap").classList.remove("hide");
+  $("rip").disabled = true;
+  POLL = setInterval(pollJob, 700);
+};
+
+$("cancel").onclick = () => fetch("/api/cancel");
+
+async function pollJob() {
+  const j = await get("/api/job");
+  const pct = j.total ? ((j.done + j.fraction) / j.total) * 100 : 0;
+  $("progbar").style.width = Math.min(100, pct).toFixed(1) + "%";
+  $("proglabel").textContent = j.label || "";
+  $("progcount").textContent =
+    `${Math.min(j.done + 1, j.total)} of ${j.total} — ${(j.fraction * 100).toFixed(0)}% of this title`;
+  $("log").textContent = (j.log || []).join("\n");
+  $("log").scrollTop = $("log").scrollHeight;
+  if (!j.running && j.finished) {
+    clearInterval(POLL);
+    POLL = null;
+    $("rip").disabled = false;
+    $("progcount").textContent = `${j.total} of ${j.total} — finished`;
+    say("Rip finished.", "ok");
+    if ($("show").value && $("show").value !== NEW) $("show").onchange();
+  }
+}
+
+refresh();
+loadSettings();
+loadLibrary();
+setInterval(() => { if (!POLL) refresh(); }, 5000);
+</script>
+</body>
+</html>
