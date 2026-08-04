@@ -1,4 +1,6 @@
-# DVD Ripper GUI
+# DVD Ripper GUI 
+
+![DVD Ripper GUI demo](DVD-Ripper-Demo.gif)
 
 A local, browser-based front end for a terminal DVD/Blu-ray ripping tool — built to make a personal media workflow usable without living in a terminal window.
 
